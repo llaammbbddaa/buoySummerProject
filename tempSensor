@@ -1,0 +1,32 @@
+
+// july ninth, johnny sarrouf
+// reads temp from water-proof temp probe and displays it on lcd screen
+
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+#include <DS18B20.h>
+
+DS18B20 tempSensor(2);
+LiquidCrystal_I2C lcd(0x27,  16, 2);
+
+
+void setup() {
+
+  lcd.init();
+  lcd.backlight();
+
+  Serial.begin(9600);
+}
+
+void loop() {
+  // put your main code here, to run repeatedly:
+
+  lcd.setCursor(0,0);
+
+  int temp = tempSensor.getTempF();
+  lcd.print(temp);
+  Serial.println(temp);
+
+  delay(750);
+  lcd.clear();
+}
