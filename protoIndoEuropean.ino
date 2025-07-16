@@ -8,6 +8,7 @@
 // temp sensor, digi 52
 // i2c oxy sensor, scl1 & sda1, 0x73 address
 // micro sd card read / write, 53-50
+// tds sensor, a15
 
 // all the libraries
 #include <Wire.h>
@@ -16,26 +17,18 @@
 #include <SoftwareSerial.h>
 #include <SPI.h>
 #include <SD.h>
+#include "CQRobotTDS.h"
 
 // various init stuff
 DS18B20 tempSensor(48);
 DFRobot_OxygenSensor oxySensor;
 File dataWrite;
+CQRobotTDS tdsSensor(A15);
 
 void setup() {
 
   Serial.begin(9600);
   Wire.begin();
-
-  if (!rtc.begin()) {
-    Serial.println("RTC not found");
-    while (1);
-  }
-
-  if (rtc.lostPower()) {
-    Serial.println("Setting RTC time...");
-    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));  // sets to compile time
-  }
 
   if (!oxySensor.begin(0x73)) {
     Serial.println("oxy sensor dne");
@@ -50,7 +43,7 @@ void setup() {
 }
 
 void fileWrite(String data) {
-  String fileName = ("dataBuoy.txt" + DateTime.now());
+  String fileName = ("dataBuoy.txt");
   dataWrite = SD.open(fileName, FILE_WRITE);
   if (dataWrite) {
     dataWrite.println(data);
@@ -58,15 +51,21 @@ void fileWrite(String data) {
   }
 }
 
+float fToC(float f) {
+  return ((f - 32) * (5/9));
+}
+
 void loop() {
   // put your main code here, to run repeatedly:
 
-  int temp = tempSensor.getTempF();
+  float temp = tempSensor.getTempF();
   // the ten is there because it takes the averages of the number that you give, the higher the more smooth the value
   float oxy = oxySensor.getOxygenData(10);
+  float tds = tdsSensor.update(fToC(temp));
   Serial.println("newData");
   Serial.println(temp);
   Serial.println(oxy);
+  Serial.println(tds);
 
   delay(750);
 }
