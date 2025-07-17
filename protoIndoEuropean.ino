@@ -9,6 +9,7 @@
 // i2c oxy sensor, scl1 & sda1, 0x73 address
 // micro sd card read / write, 53-50
 // tds sensor, a15
+// pH sensor, a1
 
 // all the libraries
 #include <Wire.h>
@@ -18,12 +19,16 @@
 #include <SPI.h>
 #include <SD.h>
 #include "CQRobotTDS.h"
+#include <LowPower.h>
+#include <AnalogPHMeter.h>
 
 // various init stuff
 DS18B20 tempSensor(48);
 DFRobot_OxygenSensor oxySensor;
 File dataWrite;
 CQRobotTDS tdsSensor(A15);
+String fileNameUnique;
+bool firstData;
 
 void setup() {
 
@@ -36,15 +41,47 @@ void setup() {
   }
 
   if (!SD.begin(53)) {
-    Serial.println("initialization failed!sfidsajfoj");
+    Serial.println("sd dne");
     while (1);
   }
 
+  fileNameUnique = fileNameCreate();
+  firstData = true;
+
+}
+
+// NOT USED
+// tries to read from file, but if the file dne, then returns false
+// for checking unique file names in sd dir
+bool fileExist(String fileName) {
+  File testFile = SD.open(fileName, FILE_READ);
+  if (testFile) {
+    testFile.close();
+    return false;
+  }
+  return true;
+}
+
+// NOT USED
+// generates appropriate name for file
+String fileNameCreate() {
+  String fileName = ("dataBuoy.txt");
+  int counter = 1;
+  while (1) {
+    if (fileExist(fileName)) {
+      return fileName;
+    }
+    fileName = "dataBuoy" + String(counter) + ".txt";
+  }
 }
 
 void fileWrite(String data) {
-  String fileName = ("dataBuoy.txt");
-  dataWrite = SD.open(fileName, FILE_WRITE);
+
+  // a unique file name didnt really end up making sense
+  // especially since it wouldnt even be used if the thing is always running
+  fileNameUnique = "dataBuoy.txt";
+  
+  dataWrite = SD.open(fileNameUnique, FILE_WRITE);
   if (dataWrite) {
     dataWrite.println(data);
     dataWrite.close();
@@ -62,10 +99,26 @@ void loop() {
   // the ten is there because it takes the averages of the number that you give, the higher the more smooth the value
   float oxy = oxySensor.getOxygenData(10);
   float tds = tdsSensor.update(fToC(temp));
-  Serial.println("newData");
-  Serial.println(temp);
-  Serial.println(oxy);
-  Serial.println(tds);
+//  Serial.println("newData");
+//  Serial.println(temp);
+//  Serial.println(oxy);
+//  Serial.println(tds);
+//  Serial.println((analogRead(A1) * .01));
+//  Serial.println(fileNameUnique);
 
-  delay(750);
+  // the first piece of data, for the temp sensor, is usually wrong
+  // so this is here just to scrap it
+  if (firstData) {
+    firstData = false;
+  }
+  else {
+    String newData = String(temp) + "," + String(oxy) + "," + String(tds) + "," + String((analogRead(A1) * .01));
+    fileWrite(newData);
+  }
+
+  // delay(750);
+  // in order to save on power, instead of delay
+  // we can turn the system off for eight second intervals
+  LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
+  
 }
