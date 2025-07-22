@@ -1,4 +1,7 @@
-// protoIndoEuropean (idk, i think its a funny name, and i like linguistics)
+// arduinoMegaBuoy.ino
+// this one is for the arduino MEGA, but was eventually changed to a regular arduino uno as to save on size and battery
+// the code is fully functional as far as i am concerned
+// OLD NAME ~~protoIndoEuropean (idk, i think its a funny name, and i like linguistics)~~
 // july fifteenth, johnny sarrouf
 // ideally, the prototype for the data collection for the buoy
 // github, https://github.com/llaammbbddaa/buoySummerProject/
@@ -10,6 +13,7 @@
 // micro sd card read / write, 53-50
 // tds sensor, a15
 // pH sensor, a1
+// water sensor, a7
 
 // all the libraries
 #include <Wire.h>
@@ -92,13 +96,27 @@ float fToC(float f) {
   return ((f - 32) * (5/9));
 }
 
+bool waterPresent(int waterVal) {
+  return (waterVal > 100);
+}
+void waterShutoff(bool water) {
+  if (water) {
+    // Serial.println("water detected...");
+    LowPower.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF);
+  }
+}
+
 void loop() {
   // put your main code here, to run repeatedly:
+
+  // checks to see if there is water within the container, and if so , it turns the arduino off indefinitely as a last resort
+  waterShutoff(waterPresent(analogRead(A7)));
 
   float temp = tempSensor.getTempF();
   // the ten is there because it takes the averages of the number that you give, the higher the more smooth the value
   float oxy = oxySensor.getOxygenData(10);
   float tds = tdsSensor.update(fToC(temp));
+  
 //  Serial.println("newData");
 //  Serial.println(temp);
 //  Serial.println(oxy);
