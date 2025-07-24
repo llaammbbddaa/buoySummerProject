@@ -1,3 +1,10 @@
+## FORMULA - incredibly basic
+prob = 100 * (1 - (percentDiffpH + percentDifftemp + percentDifftds));
+
+
+
+# **OUTDATED**
+
 ## formula
 Accuracy: 0.7460545193687231
 Intercept: 0.970945804309344
