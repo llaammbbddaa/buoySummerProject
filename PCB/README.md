@@ -8,3 +8,5 @@ and i would strongly advise people to add that in the comments of their code (as
 there should at least be a pdf of the pcb that we designed
 its fairly simple, and just helps to support and compact all of the sensors and arduino
 it makes the most sense to use a manufactured pcb because we are short on space
+
+![pcb image](pcbImage.png)
