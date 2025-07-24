@@ -1,4 +1,11 @@
 ## formula
+Accuracy: 0.7460545193687231
+Intercept: 0.970945804309344
+Coefficients: $[-0.12291875 -0.02812187 -0.00668885]$
+pH          : -0.1229
+Salinity    : -0.0281
+Water Temp  : -0.0067
+
 
 ## explanation
 basically we needed a way to be able to enter in our sensor data values and get back some analysis as to the likelihood of an algal bloom occurring
