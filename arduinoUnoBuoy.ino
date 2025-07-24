@@ -109,16 +109,38 @@ void waterShutoff(bool water) {
   }
 }
 
+// from zero to one, technically not a percentage, but i prefer it this way
+float percentDiff(float a, float b) {
+  return ((abs(a - b)) / ((a + b) / 2));
+}
+
+// supposed to return a probability of an algal bloom occurring, given certain data
+float algalBloom(float pH, float temp, float tds) {
+  pH = percentDiff(pH, 8);
+  temp = percentDiff(temp, 25);
+  tds = percentDiff(tds, 35000);
+
+  // INCREDIBLY INCREDIBLY basic idea here, a one would be optimal setting for an algal bloom
+  // any reasonable deviation from the optimal setting for algae reduces the one by a factor determined by the percent difference of said algal efficiency
+  // any values LESS than zero are returned as zero
+  float prob = 100 * (1 - (pH + temp + tds));
+  if (prob < 0) {
+    prob = 0;
+  }
+  return prob;
+}
+
 void loop() {
   // put your main code here, to run repeatedly:
 
   // checks to see if there is water within the container, and if so , it turns the arduino off indefinitely as a last resort
   waterShutoff(waterPresent(analogRead(A1)));
 
-  float temp = tempSensor.getTempF();
+  float temp = tempSensor.getTempC();
   // the ten is there because it takes the averages of the number that you give, the higher the more smooth the value
   float oxy = oxySensor.getOxygenData(10);
-  float tds = tdsSensor.update(fToC(temp));
+  float tds = tdsSensor.update(temp);
+  float pH = (analogRead(A0) * .01);
   
 //  Serial.println("newData");
 //  Serial.println(temp);
@@ -133,7 +155,8 @@ void loop() {
     firstData = false;
   }
   else {
-    String newData = String(temp) + "," + String(oxy) + "," + String(tds) + "," + String((analogRead(A0) * .01));
+    // temp,oxy,tds,pH,algalScore ~ for csv ordering
+    String newData = String(temp) + "," + String(oxy) + "," + String(tds) + "," + String(pH) + "," + String(algalBloom(pH, temp, tds));
     fileWrite(newData);
   }
 
