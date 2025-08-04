@@ -1,5 +1,3 @@
-// TODO: add algal bloom prediction
-
 // arduinoUnoBuoy.ino
 // this one is for the arduino Uno
 // things APPEAR to be working as intended
