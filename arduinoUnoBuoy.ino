@@ -122,12 +122,12 @@ float algalBloom(float pH, float temp, float tds) {
 
   // INCREDIBLY INCREDIBLY basic idea here, a one would be optimal setting for an algal bloom
   // any reasonable deviation from the optimal setting for algae reduces the one by a factor determined by the percent difference of said algal efficiency
-  // any values LESS than zero are returned as zero
+  // tested with data sets from the gulf of mexico to determine a percent threshold of about sixty eight percent
   float prob = 100 * (1 - (pH + temp + tds));
-  if (prob < 0) {
-    prob = 0;
+  if (prob >= 68) {
+    return 1;
   }
-  return prob;
+  return 0;
 }
 
 void loop() {
