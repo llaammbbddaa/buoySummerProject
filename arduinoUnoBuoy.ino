@@ -113,7 +113,7 @@ float percentDiff(float a, float b) {
 }
 
 // supposed to return a probability of an algal bloom occurring, given certain data
-float algalBloom(float pH, float temp, float tds) {
+int algalBloom(float pH, float temp, float tds) {
   pH = percentDiff(pH, 8);
   temp = percentDiff(temp, 25);
   tds = percentDiff(tds, 35000);
