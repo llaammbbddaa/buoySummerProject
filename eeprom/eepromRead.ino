@@ -65,7 +65,9 @@ void loop() {
   getSection(offset);
   
   offset += 8;
-  if (offset >= 300) {
+  if (offset >= 4000) {
     while(1); // stop once reached the end of eeprom
   }
+
+  
 }
