@@ -29,6 +29,8 @@ File dataWrite;
 CQRobotTDS tdsSensor(A2);
 String fileNameUnique;
 bool firstData;
+int index = 0;
+int totalSize = 4000; // flattened value so it doesnt accidentally overflow and cause issues later on
 
 //–– Helper: print a uint64_t in decimal via Serial ––
 void printUint64(uint64_t x) {
@@ -122,9 +124,6 @@ void setup() {
 
   Serial.begin(9600);
 
-  int index = 0;
-  int totalSize = 4000; // flattened value so it doesnt accidentally overflow and cause issues later on
-
   Wire.begin();
 
   if (!oxySensor.begin(0x73)) {
@@ -136,9 +135,6 @@ void setup() {
     Serial.println("sd dne");
     while (1);
   }
-
-  fileNameUnique = fileNameCreate();
-  firstData = true;
 
 }
 
@@ -209,7 +205,7 @@ void loop() {
 //    fileWrite(newData);
 
     // using this system instead, because it allows us to write data to the arduino without an sd card
-    uint64_t dataEncoded = (uint64_t)(dataEncoding(temp, oxy, tds, pH, algal));
+    uint64_t dataEncoded = (uint64_t)(dataEncoding(temp, oxy, tds, pH, algalBloom(pH, temp, tds)));
     writeUint64ToEEPROM(index, dataEncoded);
 
     // eight bytes written, so we increment by eight
