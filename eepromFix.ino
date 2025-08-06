@@ -21,16 +21,18 @@
 #include "CQRobotTDS.h"
 #include <LowPower.h>
 #include <AnalogPHMeter.h>
+#include "GravityTDS.h"
 
 // various init stuff
 DS18B20 tempSensor(4);
 DFRobot_OxygenSensor oxySensor;
 File dataWrite;
-CQRobotTDS tdsSensor(A2);
+//CQRobotTDS tdsSensor(A2);
 String fileNameUnique;
 bool firstData;
 int index = 0;
 int totalSize = 4000; // flattened value so it doesnt accidentally overflow and cause issues later on
+GravityTDS gravityTds;
 
 //–– Helper: print a uint64_t in decimal via Serial ––
 void printUint64(uint64_t x) {
@@ -96,7 +98,7 @@ void writeUint64ToEEPROM(int startAddr, uint64_t value) {
 }
 
 // Function to encode sensor data and return 8 bytes
-int dataEncoding(float temp, float oxy, float tds, float pH, int algal) {
+uint64_t dataEncoding(float temp = 0.0, float oxy = 0.0, float tds = 0.0, float pH = 0.0, int algal = 0) {
   int givens[] = { int(temp), int(oxy), int(tds), int(pH), algal };
   for (int i = 0; i < 5; i++) {
     Serial.println(givens[i]);
@@ -105,18 +107,34 @@ int dataEncoding(float temp, float oxy, float tds, float pH, int algal) {
   String tS, oS, tdS, pS, aS;
 
   tS = String(givens[0]).substring(0, 2);
+  if (givens[0] <= 10) {
+    tS = "00";
+  }
+  
   oS = String(givens[1]).substring(0, 2);
+  if (givens[1] <= 10) {
+    oS = "00";
+  }
+  
   tdS = String(givens[2]).substring(0, 3);
+  if (givens[2] <= 0) {
+    tdS = "000";
+  }
+  
   if (givens[3] >= 10) {
     pS = String(givens[3]).substring(0, 2);
   }
   else {
     pS = "0" + String(givens[3]);
   }
+  if (givens[3] <= 0) {
+    pS = "00";
+  }
+  
   aS = String(givens[4]);
 
   String allPieces = tS + oS + tdS + pS + aS;
-  return allPieces.toInt();
+  return (uint64_t) allPieces.toInt();  // still better to parse manually
 }
 
 void setup() {
@@ -126,16 +144,30 @@ void setup() {
 
   Wire.begin();
 
+  pinMode(LED_BUILTIN, OUTPUT);
+
+  gravityTds.setPin(A3);
+  gravityTds.setAref(5.0);  //reference voltage on ADC, default 5.0V on Arduino UNO
+  gravityTds.setAdcRange(1024);  //1024 for 10bit ADC;4096 for 12bit ADC
+  gravityTds.begin();  //initialization
+
   if (!oxySensor.begin(0x73)) {
     Serial.println("oxy sensor dne");
     while (1);
   }
 
-  if (!SD.begin(10)) {
-    Serial.println("sd dne");
-    while (1);
-  }
+//  if (!SD.begin(10)) {
+//    Serial.println("sd dne");
+//    while (1);
+//  }
 
+}
+
+void ledBlink() {
+  digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
+  delay(500);                       // wait for a second
+  digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW
+  delay(250);                       // wait for a second
 }
 
 float fToC(float f) {
@@ -182,8 +214,11 @@ void loop() {
   float temp = tempSensor.getTempC();
   // the ten is there because it takes the averages of the number that you give, the higher the more smooth the value
   float oxy = oxySensor.getOxygenData(10);
-  float tds = tdsSensor.update(temp);
+  // float tds = tdsSensor.update(temp);
   float pH = (analogRead(A0) * .01);
+  gravityTds.setTemperature(temp);  // set the temperature and execute temperature compensation
+  gravityTds.update();  //sample and calculate
+  float tds = gravityTds.getTdsValue();  // then get the value
   
 //  Serial.println("newData");
 //  Serial.println(temp);
@@ -205,17 +240,19 @@ void loop() {
 //    fileWrite(newData);
 
     // using this system instead, because it allows us to write data to the arduino without an sd card
-    uint64_t dataEncoded = (uint64_t)(dataEncoding(temp, oxy, tds, pH, algalBloom(pH, temp, tds)));
+    uint64_t dataEncoded = (dataEncoding(temp, oxy, tds, pH, algalBloom(pH, temp, tds)));
     writeUint64ToEEPROM(index, dataEncoded);
+    
 
     // eight bytes written, so we increment by eight
     index += 8;
-    if (index >= totalSize) {
+    if (index >= 160) {
       while(1); // stopping the program once the eeprom memory is full (near full)
     }
   }
 
-  delay(750);
+  //delay(750);
+  ledBlink();
 
   // normally, this would make sense to utilize, but just because we are running out of time
   // and i am not in the mood to tinker with more stuff today, we will just use delay
