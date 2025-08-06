@@ -246,7 +246,7 @@ void loop() {
 
     // eight bytes written, so we increment by eight
     index += 8;
-    if (index >= 160) {
+    if (index >= 4000) {
       while(1); // stopping the program once the eeprom memory is full (near full)
     }
   }
