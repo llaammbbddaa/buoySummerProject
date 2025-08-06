@@ -32,7 +32,14 @@ String fileNameUnique;
 bool firstData;
 int index = 0;
 int totalSize = 4000; // flattened value so it doesnt accidentally overflow and cause issues later on
-GravityTDS gravityTds;
+// GravityTDS gravityTds; doesnt work
+#define TdsSensorPin A3
+#define VREF 5.0      // analog reference voltage(Volt) of the ADC
+#define SCOUNT  30           // sum of sample point
+int analogBuffer[SCOUNT];    // store the analog value in the array, read from ADC
+int analogBufferTemp[SCOUNT];
+int analogBufferIndex = 0,copyIndex = 0;
+float averageVoltage = 0,tdsValue = 0,temperature = 28;
 
 //–– Helper: print a uint64_t in decimal via Serial ––
 void printUint64(uint64_t x) {
@@ -97,6 +104,15 @@ void writeUint64ToEEPROM(int startAddr, uint64_t value) {
   }
 }
 
+uint64_t encodeDecimalString(const String &s) {
+  uint64_t v = 0;
+  for (char c : s) {
+    if (c < '0' || c > '9') continue;
+    v = v * 10 + (c - '0');
+  }
+  return v;
+}
+
 // Function to encode sensor data and return 8 bytes
 uint64_t dataEncoding(float temp = 0.0, float oxy = 0.0, float tds = 0.0, float pH = 0.0, int algal = 0) {
   int givens[] = { int(temp), int(oxy), int(tds), int(pH), algal };
@@ -134,7 +150,66 @@ uint64_t dataEncoding(float temp = 0.0, float oxy = 0.0, float tds = 0.0, float 
   aS = String(givens[4]);
 
   String allPieces = tS + oS + tdS + pS + aS;
-  return (uint64_t) allPieces.toInt();  // still better to parse manually
+  return encodeDecimalString(allPieces);  // still better to parse manually
+}
+
+// also example stuff
+int getMedianNum(int bArray[], int iFilterLen) 
+{
+      int bTab[iFilterLen];
+      for (byte i = 0; i<iFilterLen; i++)
+      bTab[i] = bArray[i];
+      int i, j, bTemp;
+      for (j = 0; j < iFilterLen - 1; j++) 
+      {
+      for (i = 0; i < iFilterLen - j - 1; i++) 
+          {
+        if (bTab[i] > bTab[i + 1]) 
+            {
+        bTemp = bTab[i];
+            bTab[i] = bTab[i + 1];
+        bTab[i + 1] = bTemp;
+         }
+      }
+      }
+      if ((iFilterLen & 1) > 0)
+    bTemp = bTab[(iFilterLen - 1) / 2];
+      else
+    bTemp = (bTab[iFilterLen / 2] + bTab[iFilterLen / 2 - 1]) / 2;
+      return bTemp;
+}
+
+// ignore the spacing consistencies, this is example code
+float getTds() {
+   static unsigned long analogSampleTimepoint = millis();
+   if(millis()-analogSampleTimepoint > 40U)     //every 40 milliseconds,read the analog value from the ADC
+   {
+     analogSampleTimepoint = millis();
+     analogBuffer[analogBufferIndex] = analogRead(TdsSensorPin);    //read the analog value and store into the buffer
+     analogBufferIndex++;
+     if(analogBufferIndex == SCOUNT) 
+         analogBufferIndex = 0;
+   }   
+   static unsigned long printTimepoint = millis();
+   if(millis()-printTimepoint > 800U)
+   {
+      printTimepoint = millis();
+      for(copyIndex=0;copyIndex<SCOUNT;copyIndex++)
+        analogBufferTemp[copyIndex]= analogBuffer[copyIndex];
+      averageVoltage = getMedianNum(analogBufferTemp,SCOUNT) * (float)VREF / 1024.0; // read the analog value more stable by the median filtering algorithm, and convert to voltage value
+      float compensationCoefficient=1.0+0.02*(temperature-25.0);    //temperature compensation formula: fFinalResult(25^C) = fFinalResult(current)/(1.0+0.02*(fTP-25.0));
+      float compensationVolatge=averageVoltage/compensationCoefficient;  //temperature compensation
+      tdsValue=(133.42*compensationVolatge*compensationVolatge*compensationVolatge - 255.86*compensationVolatge*compensationVolatge + 857.39*compensationVolatge)*0.5; //convert voltage value to tds value
+      //Serial.print("voltage:");
+      //Serial.print(averageVoltage,2);
+      //Serial.print("V   ");
+//      Serial.print("TDS Value:");
+//      Serial.print(tdsValue,0);
+//      Serial.println("ppm");
+
+      return tdsValue;
+   }
+   return 0;
 }
 
 void setup() {
@@ -146,10 +221,12 @@ void setup() {
 
   pinMode(LED_BUILTIN, OUTPUT);
 
-  gravityTds.setPin(A3);
-  gravityTds.setAref(5.0);  //reference voltage on ADC, default 5.0V on Arduino UNO
-  gravityTds.setAdcRange(1024);  //1024 for 10bit ADC;4096 for 12bit ADC
-  gravityTds.begin();  //initialization
+  pinMode(TdsSensorPin, INPUT);
+
+//  gravityTds.setPin(A3);
+//  gravityTds.setAref(5.0);  //reference voltage on ADC, default 5.0V on Arduino UNO
+//  gravityTds.setAdcRange(1024);  //1024 for 10bit ADC;4096 for 12bit ADC
+//  gravityTds.begin();  //initialization
 
   if (!oxySensor.begin(0x73)) {
     Serial.println("oxy sensor dne");
@@ -216,9 +293,10 @@ void loop() {
   float oxy = oxySensor.getOxygenData(10);
   // float tds = tdsSensor.update(temp);
   float pH = (analogRead(A0) * .01);
-  gravityTds.setTemperature(temp);  // set the temperature and execute temperature compensation
-  gravityTds.update();  //sample and calculate
-  float tds = gravityTds.getTdsValue();  // then get the value
+//  gravityTds.setTemperature(temp);  // set the temperature and execute temperature compensation
+//  gravityTds.update();  //sample and calculate
+//  float tds = gravityTds.getTdsValue();  // then get the value
+  float tds = getTds();
   
 //  Serial.println("newData");
 //  Serial.println(temp);
